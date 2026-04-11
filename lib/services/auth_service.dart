@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/auth_response.dart';
 import '../models/user.dart';
+import '../models/employee.dart';
 import '../config/constants.dart';
 
 class AuthService {
@@ -15,10 +16,7 @@ class AuthService {
       final response = await http.post(
         Uri.parse('${AppConstants.apiBaseUrl}${AppConstants.loginEndpoint}'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-        }),
+        body: jsonEncode({'email': email, 'password': password}),
       );
 
       if (response.statusCode == 200) {
@@ -39,10 +37,7 @@ class AuthService {
       final response = await http.post(
         Uri.parse('${AppConstants.apiBaseUrl}${AppConstants.registerEndpoint}'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-        }),
+        body: jsonEncode({'email': email, 'password': password}),
       );
 
       if (response.statusCode != 200) {
@@ -64,9 +59,7 @@ class AuthService {
       final response = await http.post(
         Uri.parse('${AppConstants.apiBaseUrl}${AppConstants.refreshEndpoint}'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'refreshToken': refreshToken,
-        }),
+        body: jsonEncode({'refreshToken': refreshToken}),
       );
 
       if (response.statusCode == 200) {
@@ -83,14 +76,15 @@ class AuthService {
 
   Future<User?> getUserInfo() async {
     final token = await getAccessToken();
+    final email = await _storage.read(key: AppConstants.userEmailKey);
 
-    if (token == null) {
+    if (token == null || email == null) {
       return null;
     }
 
     try {
       final response = await http.get(
-        Uri.parse('${AppConstants.apiBaseUrl}${AppConstants.manageInfoEndpoint}'),
+        Uri.parse('${AppConstants.apiBaseUrl}/Users/by-email/$email'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -100,15 +94,55 @@ class AuthService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return User.fromJson(data);
-      } else if (response.statusCode == 401) {
-        await refreshAccessToken();
-        return getUserInfo();
       } else {
         return null;
       }
     } catch (e) {
       return null;
     }
+  }
+
+  Future<Employee?> getEmpleado(String userId, String email) async {
+    final token = await getAccessToken();
+    if (token == null) return null;
+
+    try {
+      final responseLista = await http.get(
+        Uri.parse('${AppConstants.personalBaseUrl}/Personal'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (responseLista.statusCode == 200) {
+        final data = jsonDecode(responseLista.body);
+
+        if (data is List) {
+          final lista = data
+              .where((emp) => (emp['usuarioId'] ?? '').toString() == userId)
+              .toList();
+
+          if (lista.isNotEmpty) {
+            return Employee.fromJson(lista.first);
+          }
+        } else if (data is Map<String, dynamic>) {
+          final usuarioId = data['usuarioId'] ?? '';
+          if (usuarioId.toString() == userId) {
+            return Employee.fromJson(data);
+          }
+        }
+      }
+
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<bool> esEmpleado(String userId, String email) async {
+    final empleado = await getEmpleado(userId, email);
+    return empleado != null;
   }
 
   Future<void> _saveTokens(AuthResponse authResponse) async {

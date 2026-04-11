@@ -1,12 +1,13 @@
 class AppConstants {
   // API Configuration
-  static const String apiBaseUrl = 'http://10.0.2.2/auth';
+  static const String apiBaseUrl = 'http://localhost:5117';
+  static const String personalBaseUrl = 'https://localhost:7168';
 
   // API Endpoints
-  static const String loginEndpoint = '/login';
+  static const String loginEndpoint = '/Login';
   static const String registerEndpoint = '/register';
   static const String refreshEndpoint = '/refresh';
-  static const String manageInfoEndpoint = '/manage/info';
+  static const String userByEmailEndpoint = '/Users/by-email';
 
   // Storage Keys
   static const String accessTokenKey = 'access_token';
