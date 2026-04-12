@@ -24,11 +24,21 @@ class AuthService {
         await _saveTokens(authResponse);
         await _storage.write(key: AppConstants.userEmailKey, value: email);
         return authResponse;
+      } else if (response.statusCode == 401) {
+        throw Exception('Correo o contraseña incorrectos');
+      } else if (response.statusCode >= 500) {
+        throw Exception('Error del servidor, intenta más tarde');
       } else {
-        throw Exception('Error al iniciar sesión: ${response.statusCode}');
+        throw Exception('Error inesperado (${response.statusCode})');
       }
     } catch (e) {
-      throw Exception('Error de conexión: $e');
+      if (e is Exception && 
+          (e.toString().contains('SocketException') || 
+           e.toString().contains('TimeoutException') || 
+           e.toString().contains('HttpException'))) {
+        throw Exception('Error de conexión. Verifica tu internet');
+      }
+      rethrow;
     }
   }
 
@@ -103,42 +113,46 @@ class AuthService {
   }
 
   Future<Employee?> getEmpleado(String userId, String email) async {
-    final token = await getAccessToken();
-    if (token == null) return null;
+  final token = await getAccessToken();
+  if (token == null) return null;
 
-    try {
-      final responseLista = await http.get(
-        Uri.parse('${AppConstants.personalBaseUrl}/Personal'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+  try {
+    final response = await http.get(
+      Uri.parse('${AppConstants.personalBaseUrl}/Personal'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
 
-      if (responseLista.statusCode == 200) {
-        final data = jsonDecode(responseLista.body);
+    print("USER ID LOGIN: $userId");
 
-        if (data is List) {
-          final lista = data
-              .where((emp) => (emp['usuarioId'] ?? '').toString() == userId)
-              .toList();
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
 
-          if (lista.isNotEmpty) {
-            return Employee.fromJson(lista.first);
-          }
-        } else if (data is Map<String, dynamic>) {
-          final usuarioId = data['usuarioId'] ?? '';
-          if (usuarioId.toString() == userId) {
-            return Employee.fromJson(data);
+      if (data is List) {
+        for (var emp in data) {
+          final apiUserId = emp['usuarioId']?.toString().trim();
+
+          print("API USER ID: $apiUserId");
+
+          if (apiUserId == userId.trim()) {
+            print("✅ EMPLEADO ENCONTRADO");
+            return Employee.fromJson(emp);
           }
         }
       }
-
-      return null;
-    } catch (e) {
-      return null;
+    } else {
+      print("❌ ERROR API PERSONAL: ${response.statusCode}");
     }
+
+    print("❌ NO SE ENCONTRO EMPLEADO");
+    return null;
+  } catch (e) {
+    print("❌ ERROR: $e");
+    return null;
   }
+}
 
   Future<bool> esEmpleado(String userId, String email) async {
     final empleado = await getEmpleado(userId, email);

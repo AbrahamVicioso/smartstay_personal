@@ -18,10 +18,10 @@ class AuthProvider with ChangeNotifier {
   bool get isAuthenticated => _user != null;
   String? get personalId => _empleado?.personalId;
   String? get nombreCompleto => _empleado?.nombreCompleto;
-  String? get puesto => _empleado?.puesto;
-  String? get departamento => _empleado?.departamento;
+  int? get puestoId => _empleado?.puestoId;
+  int? get departamentoId => _empleado?.departamentoId;
 
-  Future<bool> login(String email, String password) async {
+Future<bool> login(String email, String password) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -30,7 +30,6 @@ class AuthProvider with ChangeNotifier {
       await _authService.login(email, password);
       _user = await _authService.getUserInfo();
       
-      // Verificar si se obtuvo el usuario correctamente
       if (_user == null) {
         _errorMessage = "No se pudo obtener la información del usuario";
         _isLoading = false;
@@ -38,17 +37,19 @@ class AuthProvider with ChangeNotifier {
         return false;
       }
 
-      // Validar si el usuario es empleado
-      final user = _user;
+      final currentUser = _user;
 
-if (user == null) {
+if (currentUser == null) {
   _errorMessage = "No se pudo obtener la información del usuario";
   _isLoading = false;
   notifyListeners();
   return false;
 }
 
-final empleado = await _authService.getEmpleado(user.id, user.email);
+final empleado = await _authService.getEmpleado(
+  currentUser.id,
+  currentUser.email,
+);
       if (empleado == null) {
         await _authService.logout();
         _user = null;
@@ -64,14 +65,14 @@ final empleado = await _authService.getEmpleado(user.id, user.email);
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
       _isLoading = false;
       notifyListeners();
       return false;
     }
   }
 
-  Future<void> checkAuthStatus() async {
+Future<void> checkAuthStatus() async {
     _isLoading = true;
     notifyListeners();
 
@@ -80,7 +81,6 @@ final empleado = await _authService.getEmpleado(user.id, user.email);
     if (isLoggedIn) {
       _user = await _authService.getUserInfo();
       
-      // Verificar si se obtuvo el usuario correctamente
       if (_user == null) {
         await _authService.logout();
         _user = null;
@@ -90,19 +90,20 @@ final empleado = await _authService.getEmpleado(user.id, user.email);
         return;
       }
 
-      // Validar si el usuario es empleado
-      final user = _user;
+      final currentUser = _user;
 
-if (user == null) {
-  await _authService.logout();
-  _user = null;
-  _empleado = null;
+if (currentUser == null) {
+  _errorMessage = "No se pudo obtener la información del usuario";
   _isLoading = false;
   notifyListeners();
   return;
 }
 
-final empleado = await _authService.getEmpleado(user.id, user.email);
+final empleado = await _authService.getEmpleado(
+  currentUser.id,
+  currentUser.email,
+);
+
       if (empleado == null) {
         await _authService.logout();
         _user = null;
@@ -113,10 +114,9 @@ final empleado = await _authService.getEmpleado(user.id, user.email);
       }
       _empleado = empleado;
     } else {
-      // No hay sesión, limpiar datos
       _user = null;
       _empleado = null;
-      notifyListeners(); // Agregar notificación
+      notifyListeners();
     }
 
     _isLoading = false;

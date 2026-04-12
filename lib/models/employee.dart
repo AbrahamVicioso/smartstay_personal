@@ -2,15 +2,15 @@ class Employee {
   final String personalId;
   final String usuarioId;
   final String nombreCompleto;
-  final String puesto;
-  final String departamento;
+  final int puestoId;
+  final int departamentoId;
 
   Employee({
     required this.personalId,
     required this.usuarioId,
     required this.nombreCompleto,
-    required this.puesto,
-    required this.departamento,
+    required this.puestoId,
+    required this.departamentoId,
   });
 
   factory Employee.fromJson(Map<String, dynamic> json) {
@@ -18,8 +18,13 @@ class Employee {
       personalId: json['id'] ?? '',
       usuarioId: json['usuarioId'] ?? '',
       nombreCompleto: json['nombreCompleto'] ?? '',
-      puesto: json['puesto'] ?? '',
-      departamento: json['departamento'] ?? '',
+      puestoId: json['puestoId'] is int 
+    ? json['puestoId'] 
+    : int.parse(json['puestoId'].toString()),
+
+departamentoId: json['departamentoId'] is int 
+    ? json['departamentoId'] 
+    : int.parse(json['departamentoId'].toString()),
     );
   }
 
@@ -28,8 +33,8 @@ class Employee {
       'id': personalId,
       'usuarioId': usuarioId,
       'nombreCompleto': nombreCompleto,
-      'puesto': puesto,
-      'departamento': departamento,
+      'puestoId': puestoId,
+      'departamentoId': departamentoId,
     };
   }
 }
