@@ -1,7 +1,8 @@
 class AppConstants {
   // API Configuration
-  static const String apiBaseUrl = 'http://localhost:5117';
-  static const String personalBaseUrl = 'https://localhost:7168';
+  static const String apiBaseUrl = 'http://localhost:5117';         
+  static const String personalBaseUrl = 'https://localhost:7168';   // <-- HTTPS, no HTTP
+  static const String habitacionesBaseUrl = 'https://localhost:7279'; // Probablemente tambien HTTPS
 
   // API Endpoints
   static const String loginEndpoint = '/Login';

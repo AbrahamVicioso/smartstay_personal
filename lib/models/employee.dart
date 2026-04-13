@@ -15,22 +15,22 @@ class Employee {
 
   factory Employee.fromJson(Map<String, dynamic> json) {
     return Employee(
-      personalId: json['id'] ?? '',
-      usuarioId: json['usuarioId'] ?? '',
-      nombreCompleto: json['nombreCompleto'] ?? '',
-      puestoId: json['puestoId'] is int 
-    ? json['puestoId'] 
-    : int.parse(json['puestoId'].toString()),
-
-departamentoId: json['departamentoId'] is int 
-    ? json['departamentoId'] 
-    : int.parse(json['departamentoId'].toString()),
+      // Convertir a String siempre
+      personalId: (json['personalId'] ?? json['id'] ?? 0).toString(),
+      usuarioId: (json['usuarioId'] ?? '').toString(),
+      nombreCompleto: (json['nombreCompleto'] ?? '').toString(),
+      puestoId: json['puestoId'] is int
+          ? json['puestoId']
+          : int.tryParse(json['puestoId'].toString()) ?? 0,
+      departamentoId: json['departamentoId'] is int
+          ? json['departamentoId']
+          : int.tryParse(json['departamentoId'].toString()) ?? 0,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': personalId,
+      'personalId': personalId,
       'usuarioId': usuarioId,
       'nombreCompleto': nombreCompleto,
       'puestoId': puestoId,

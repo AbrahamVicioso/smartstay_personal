@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/room_provider.dart';
+import '../providers/auth_provider.dart';
 import '../models/room.dart';
 import '../config/theme.dart';
 
@@ -29,57 +30,80 @@ class _RoomsScreenState extends State<RoomsScreen> {
     super.dispose();
   }
 
-  Future<void> _unlockDoor(Room room) async {
-    final confirmed = await showDialog<bool>(
+  Future<void> _requestAccess(Room room) async {
+    final motivo = await showModalBottomSheet<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.lock_open, color: AppTheme.navyBlue),
-            const SizedBox(width: 12),
-            Text('Abrir Habitación ${room.numeroHabitacion}'),
-          ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
         ),
-        content: Column(
+        padding: const EdgeInsets.all(24),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('¿Desea abrir la puerta de la habitación ${room.numeroHabitacion}?'),
-            const SizedBox(height: 12),
-            if (room.guestName != null) ...[
-              const Divider(),
-              const SizedBox(height: 8),
-              Text(
-                'Huésped: ${room.guestName}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.navyBlue,
-                ),
-              ),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('CANCELAR'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
+            Row(
               children: [
-                Icon(Icons.lock_open, size: 18),
-                SizedBox(width: 4),
-                Text('ABRIR'),
+                Icon(Icons.hotel, color: AppTheme.navyBlue, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Acceder a Habitación ${room.numeroHabitacion}',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.navyBlue,
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              'Piso ${room.piso} • ${room.tipoHabitacion}',
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppTheme.corporateGray,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Selecciona el motivo de acceso:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.navyBlue,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildAccessOption('Limpieza', Icons.cleaning_services),
+            const SizedBox(height: 12),
+            _buildAccessOption('Mantenimiento', Icons.build),
+            const SizedBox(height: 12),
+            _buildAccessOption('Entrega', Icons.local_shipping),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('CANCELAR'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
 
-    if (confirmed == true && mounted) {
+    if (motivo != null && mounted) {
       // Mostrar indicador de carga
       showDialog(
         context: context,
@@ -93,7 +117,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                 children: [
                   CircularProgressIndicator(),
                   SizedBox(height: 16),
-                  Text('Abriendo puerta...'),
+                  Text('Solicitando acceso...'),
                 ],
               ),
             ),
@@ -102,9 +126,11 @@ class _RoomsScreenState extends State<RoomsScreen> {
       );
 
       try {
-        final resultado = await context.read<RoomProvider>().unlockDoor(
-              room,
-              'Acceso Personal',
+        final authProvider = context.read<AuthProvider>();
+        final resultado = await context.read<RoomProvider>().requestAccess(
+              personalId: authProvider.personalId!,
+              habitacionId: room.habitacionId,
+              motivo: motivo,
             );
 
         if (mounted) {
@@ -145,6 +171,43 @@ class _RoomsScreenState extends State<RoomsScreen> {
         }
       }
     }
+  }
+
+  Widget _buildAccessOption(String motivo, IconData icon) {
+    return InkWell(
+      onTap: () => Navigator.of(context).pop(motivo),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.navyBlue.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppTheme.navyBlue.withOpacity(0.2),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: AppTheme.navyBlue, size: 24),
+            const SizedBox(width: 16),
+            Text(
+              motivo,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.navyBlue,
+              ),
+            ),
+            const Spacer(),
+            Icon(
+              Icons.arrow_forward_ios,
+              color: AppTheme.navyBlue.withOpacity(0.5),
+              size: 16,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -376,12 +439,38 @@ class _RoomsScreenState extends State<RoomsScreen> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        room.tipoHabitacion,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppTheme.corporateGray,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            'Piso ${room.piso}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppTheme.corporateGray,
+                            ),
+                          ),
+                          if (room.estadoHabitacionId != null) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: _getEstadoColor(room.estado).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: _getEstadoColor(room.estado),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                'Estado ${room.estadoHabitacionId}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: _getEstadoColor(room.estado),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
@@ -448,19 +537,13 @@ class _RoomsScreenState extends State<RoomsScreen> {
 
             const SizedBox(height: 12),
 
-            // Botón de abrir puerta
+            // Botón de acceder
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: room.tieneCerradura
-                    ? () => _unlockDoor(room)
-                    : null,
-                icon: const Icon(Icons.lock_open, size: 20),
-                label: Text(
-                  room.tieneCerradura
-                      ? 'ABRIR PUERTA'
-                      : 'SIN CERRADURA INTELIGENTE',
-                ),
+                onPressed: () => _requestAccess(room),
+                icon: const Icon(Icons.login, size: 20),
+                label: const Text('ACCEDER'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.navyBlue,
                   foregroundColor: Colors.white,
@@ -475,5 +558,18 @@ class _RoomsScreenState extends State<RoomsScreen> {
         ),
       ),
     );
+  }
+
+  Color _getEstadoColor(String estado) {
+    switch (estado) {
+      case 'Ocupada':
+        return AppTheme.statusRed;
+      case 'Disponible':
+        return AppTheme.statusGreen;
+      case 'Limpieza':
+        return AppTheme.statusYellow;
+      default:
+        return AppTheme.corporateGray;
+    }
   }
 }

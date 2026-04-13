@@ -8,9 +8,11 @@ class AuthProvider with ChangeNotifier {
 
   User? _user;
   Employee? _empleado;
+  String? _token;
   bool _isLoading = false;
   String? _errorMessage;
 
+  String? get token => _token;
   User? get user => _user;
   Employee? get empleado => _empleado;
   bool get isLoading => _isLoading;
@@ -27,7 +29,12 @@ Future<bool> login(String email, String password) async {
     notifyListeners();
 
     try {
-      await _authService.login(email, password);
+      
+   
+    final authResponse = await _authService.login(email, password);
+    
+  
+    _token = authResponse.accessToken;
       _user = await _authService.getUserInfo();
       
       if (_user == null) {

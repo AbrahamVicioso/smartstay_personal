@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 import '../models/room.dart';
 import '../services/lock_service.dart';
+import '../services/permission_service.dart';
 
 class RoomProvider with ChangeNotifier {
   final LockService _lockService = LockService();
+  final PermissionService _permissionService = PermissionService();
 
   List<Room> _rooms = [];
   List<Room> _filteredRooms = [];
@@ -111,6 +113,27 @@ class RoomProvider with ChangeNotifier {
   int get occupiedRooms => _rooms.where((r) => r.estado == 'Ocupada').length;
   int get availableRooms => _rooms.where((r) => r.estaDisponible).length;
   int get cleaningRooms => _rooms.where((r) => r.estado == 'Limpieza').length;
+
+  Future<Map<String, dynamic>> requestAccess({
+    required String personalId, // <--- CAMBIAR DE int A String
+    required int habitacionId,
+    required String motivo,
+  }) async {
+    try {
+      final resultado = await _permissionService.solicitarAcceso(
+        personalId: personalId, // Ahora ambos son String y Dart estará feliz
+        habitacionId: habitacionId,
+        justificacion: motivo,
+      );
+
+      return resultado;
+    } catch (e) {
+      return {
+        'exitoso': false,
+        'mensaje': 'Error: $e',
+      };
+    }
+  }
 
   void clearError() {
     _errorMessage = null;
