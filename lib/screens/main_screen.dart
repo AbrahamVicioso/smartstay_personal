@@ -16,12 +16,24 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    DashboardScreen(),
-    HistoryScreen(),
-    RoomsScreen(),
-    ProfileScreen(),
+final GlobalKey<HistoryScreenState> _historyKey = GlobalKey<HistoryScreenState>();
+
+
+  late final List<Widget> _screens = [
+    const DashboardScreen(),
+    HistoryScreen(key: _historyKey),   // <-- agrega la key aquí
+    const RoomsScreen(),
+    const ProfileScreen(),
   ];
+
+   void _onTabTapped(int index) {
+    // Si ya estás en historial y lo tocas de nuevo, recarga
+    // Si navegas AL historial desde otro tab, también recarga
+    if (index == 1) {
+      _historyKey.currentState?.recargar();
+    }
+    setState(() => _currentIndex = index);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,37 +91,21 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required int index,
-  }) {
+   Widget _buildNavItem({required IconData icon, required String label, required int index}) {
     final isSelected = _currentIndex == index;
-
     return Expanded(
       child: InkWell(
-        onTap: () {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+        onTap: () => _onTabTapped(index), // <-- usa el nuevo método
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: isSelected ? Colors.white : Colors.white54,
-              size: 24,
-            ),
+            Icon(icon, color: isSelected ? Colors.white : Colors.white54, size: 24),
             const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: isSelected ? Colors.white : Colors.white54,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-              ),
-            ),
+            Text(label, style: TextStyle(
+              fontSize: 12,
+              color: isSelected ? Colors.white : Colors.white54,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+            )),
           ],
         ),
       ),

@@ -46,12 +46,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await _cargarPermisos();
   }
 
-  void _navigateToHistory() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const HistoryScreen()),
-    );
-  }
-
+  void _navigateToHistory() async {
+  await Navigator.of(context).push(
+    MaterialPageRoute(builder: (_) => const HistoryScreen()),
+  );
+}
   void _navigateToProfile() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const ProfileScreen()),

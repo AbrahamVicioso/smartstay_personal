@@ -2,7 +2,7 @@ import 'package:provider/provider.dart';
 import 'providers/permission_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
-
+import 'config/route_observer.dart';
 import 'config/theme.dart';
 import 'providers/auth_provider.dart';
 import 'providers/request_provider.dart';
@@ -26,11 +26,11 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => PermissionProvider()),
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => RequestProvider()),
         ChangeNotifierProvider(create: (_) => RoomProvider()),
       ],
       child: MaterialApp(
+         navigatorObservers: [appRouteObserver],
         title: 'SmartStay Personal',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
