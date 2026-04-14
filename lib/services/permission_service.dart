@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config/constants.dart';
@@ -138,38 +139,40 @@ class PermissionService {
 
   /// POST /Habitacion/{habitacionId}/unlock - Abrir puerta
   Future<Map<String, dynamic>> abrirPuerta(int habitacionId, String? token) async {
-    try {
-      final url = '${_getHabitacionesUrl()}/Habitacion/$habitacionId/unlock';
-      debugPrint('[PermissionService] POST $url');
+  try {
+    final String baseUrl = AppConstants.habitacionesBaseUrl;
+    final uri = Uri.parse('$baseUrl/Habitacion/$habitacionId/unlock');
+    
+    debugPrint('[PermissionService] POST unlock URI: $uri');
+    
+    final response = await http.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      },
+    ).timeout(const Duration(seconds: 15));
 
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 15));
+    debugPrint('[PermissionService] POST $uri → ${response.statusCode}');
 
-      debugPrint('[PermissionService] abrirPuerta status: ${response.statusCode}');
-
-      if (response.statusCode == 200) {
-        return {
-          'exitoso': true,
-          'mensaje': 'Puerta abierta correctamente',
-        };
-      } else {
-        return {
-          'exitoso': false,
-          'mensaje': 'Error al abrir puerta: ${response.statusCode}',
-        };
-      }
-    } catch (e) {
-      debugPrint('[PermissionService] abrirPuerta error: $e');
-      return {
-        'exitoso': false,
-        'mensaje': 'Error de conexion: $e',
-      };
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      return {'exitoso': true, 'mensaje': body['message'] ?? 'Puerta abierta exitosamente'};
+    } else if (response.statusCode == 401) {
+      return {'exitoso': false, 'mensaje': 'No autorizado. Token inválido o expirado.'};
+    } else if (response.statusCode == 404) {
+      return {'exitoso': false, 'mensaje': 'Habitación no encontrada.'};
+    } else {
+      final body = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+      return {'exitoso': false, 'mensaje': body['error'] ?? 'Error ${response.statusCode}'};
     }
+  } on TimeoutException {
+    return {'exitoso': false, 'mensaje': 'Tiempo de espera agotado.'};
+  } catch (e) {
+    debugPrint('[PermissionService] Error abrirPuerta: $e');
+    return {'exitoso': false, 'mensaje': 'Error de conexión: $e'};
   }
+}
+
 }

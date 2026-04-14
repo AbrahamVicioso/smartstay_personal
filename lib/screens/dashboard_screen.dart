@@ -106,33 +106,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
-
-                  // Navigation Cards
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _buildNavigationCard(
-                            context,
-                            icon: Icons.history,
-                            title: 'Historial',
-                            onTap: _navigateToHistory,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildNavigationCard(
-                            context,
-                            icon: Icons.person,
-                            title: 'Perfil',
-                            onTap: _navigateToProfile,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+              
 
                   const SizedBox(height: 24),
 
