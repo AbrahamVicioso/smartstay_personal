@@ -14,9 +14,7 @@ class PermisoDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(permiso.descripcion),
-      ),
+      appBar: AppBar(title: Text(permiso.descripcion)),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -56,11 +54,7 @@ class PermisoDetailScreen extends StatelessWidget {
                     ),
                     if (permiso.piso != null) ...[
                       const Divider(height: 24),
-                      _buildInfoRow(
-                        Icons.layers,
-                        'Piso',
-                        '${permiso.piso}',
-                      ),
+                      _buildInfoRow(Icons.layers, 'Piso', '${permiso.piso}'),
                     ],
                     if (permiso.justificacion != null) ...[
                       const Divider(height: 24),
@@ -81,7 +75,9 @@ class PermisoDetailScreen extends StatelessWidget {
                       _buildInfoRow(
                         Icons.schedule,
                         'Expira',
-                        DateFormat('dd/MM/yyyy HH:mm').format(permiso.fechaExpiracion!),
+                        DateFormat(
+                          'dd/MM/yyyy HH:mm',
+                        ).format(permiso.fechaExpiracion!),
                       ),
                     ],
                   ],
@@ -149,10 +145,7 @@ class PermisoDetailScreen extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.textLight,
-                ),
+                style: const TextStyle(fontSize: 12, color: AppTheme.textLight),
               ),
               const SizedBox(height: 2),
               Text(
@@ -170,94 +163,102 @@ class PermisoDetailScreen extends StatelessWidget {
     );
   }
 
- Future<void> _abrirPuerta(BuildContext context) async {
-  if (permiso.habitacionId == null) return;
+  Future<void> _abrirPuerta(BuildContext context) async {
+    if (permiso.habitacionId == null) return;
 
-  final confirmar = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Abrir Puerta'),
-      content: Text('Esta a punto de abrir la puerta de la ${permiso.descripcion}. Continuar?'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('CANCELAR'),
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Abrir Puerta'),
+        content: Text(
+          'Esta a punto de abrir la puerta de la ${permiso.descripcion}. Continuar?',
         ),
-        ElevatedButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.statusGreen),
-          child: const Text('ABRIR'),
-        ),
-      ],
-    ),
-  );
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('CANCELAR'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.statusGreen,
+            ),
+            child: const Text('ABRIR'),
+          ),
+        ],
+      ),
+    );
 
-  if (confirmar != true || !context.mounted) return;
+    if (confirmar != true || !context.mounted) return;
 
-  // Mostrar loading
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => const Center(
-      child: Card(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Abriendo puerta...'),
-            ],
+    // Mostrar loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Abriendo puerta...'),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
-
-  try {
-    // CORREGIDO: Obtener token del AuthProvider
-    final authProvider = context.read<AuthProvider>();
-    final token = authProvider.token;
-    
-    final resultado = await context.read<PermissionProvider>().abrirPuerta(
-      permiso.habitacionId!,
-      token,
     );
 
-    if (context.mounted) {
-      Navigator.of(context).pop(); // Cerrar loading
+    try {
+      // CORREGIDO: Obtener token del AuthProvider
+      final authProvider = context.read<AuthProvider>();
+      final token = authProvider.token;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(
-                resultado['exitoso'] == true ? Icons.check_circle : Icons.error,
-                color: Colors.white,
-              ),
-              const SizedBox(width: 8),
-              Expanded(child: Text(resultado['mensaje'] ?? 'Operacion completada')),
-            ],
+      final resultado = await context.read<PermissionProvider>().abrirPuerta(
+        permiso.habitacionId!,
+        token,
+      );
+
+      if (context.mounted) {
+        Navigator.of(context).pop(); // Cerrar loading
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  resultado['exitoso'] == true
+                      ? Icons.check_circle
+                      : Icons.error,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(resultado['mensaje'] ?? 'Operacion completada'),
+                ),
+              ],
+            ),
+            backgroundColor: resultado['exitoso'] == true
+                ? AppTheme.statusGreen
+                : AppTheme.statusRed,
           ),
-          backgroundColor: resultado['exitoso'] == true
-              ? AppTheme.statusGreen
-              : AppTheme.statusRed,
-        ),
-      );
-    }
-  } catch (e) {
-    if (context.mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: AppTheme.statusRed,
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppTheme.statusRed,
+          ),
+        );
+      }
     }
   }
-}
 
   Future<void> _marcarCompletado(BuildContext context) async {
     final confirmar = await showDialog<bool>(
