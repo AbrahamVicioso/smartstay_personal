@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../config/theme.dart';
-import 'dashboard_screen.dart';
+import '../providers/permission_provider.dart';
+import 'dashboard_screen.dart' show DashboardScreen, DashboardScreenState;
 import 'tareas_screen.dart';
 import 'history_screen.dart';
 import 'profile_screen.dart';
@@ -15,19 +17,19 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  final GlobalKey<DashboardScreenState> _dashboardKey = GlobalKey<DashboardScreenState>();
   final GlobalKey<HistoryScreenState> _historyKey = GlobalKey<HistoryScreenState>();
 
   late final List<Widget> _screens = [
-    const DashboardScreen(),
+    DashboardScreen(key: _dashboardKey),
     const TareasScreen(),
     HistoryScreen(key: _historyKey),
     const ProfileScreen(),
   ];
 
   void _onTabTapped(int index) {
-    if (index == 2) {
-      _historyKey.currentState?.recargar();
-    }
+    if (index == 0) _dashboardKey.currentState?.recargar();
+    if (index == 2) _historyKey.currentState?.recargar();
     setState(() => _currentIndex = index);
   }
 
@@ -35,14 +37,19 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: _screens),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const NfcUnlockScreen()),
+      floatingActionButton: Consumer<PermissionProvider>(
+        builder: (context, permisos, _) {
+          if (permisos.permisosHabitaciones.isEmpty) return const SizedBox.shrink();
+          return FloatingActionButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const NfcUnlockScreen()),
+              );
+            },
+            backgroundColor: AppTheme.navyBlue,
+            child: const Icon(Icons.nfc, color: Colors.white, size: 28),
           );
         },
-        backgroundColor: AppTheme.navyBlue,
-        child: const Icon(Icons.nfc, color: Colors.white, size: 28),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(

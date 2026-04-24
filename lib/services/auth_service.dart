@@ -9,54 +9,92 @@ import '../config/constants.dart';
 class AuthService {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   String? _accessToken;
-  String? _refreshToken;
+
+  // ─── Login ────────────────────────────────────────────────────────────────
 
   Future<AuthResponse> login(String email, String password) async {
     try {
-      final response = await http.post(
-        Uri.parse('${AppConstants.apiBaseUrl}${AppConstants.loginEndpoint}'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}),
-      );
+      final response = await http
+          .post(
+            Uri.parse('${AppConstants.apiBaseUrl}${AppConstants.loginEndpoint}'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email, 'password': password}),
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        final authResponse = AuthResponse.fromJson(jsonDecode(response.body));
+        final data = jsonDecode(response.body);
+        final authResponse = AuthResponse.fromJson(data);
         await _saveTokens(authResponse);
         await _storage.write(key: AppConstants.userEmailKey, value: email);
         return authResponse;
-      } else if (response.statusCode == 401) {
+      }
+
+      if (response.statusCode == 401) {
+        final detail = _extractDetail(response.body);
+        if (_isEmailNotConfirmed(detail)) {
+          return AuthResponse.emailNotConfirmed();
+        }
+        if (_requiresTwoFactor(detail)) {
+          return AuthResponse.requiresTwoFactor();
+        }
         throw Exception('Correo o contraseña incorrectos');
-      } else if (response.statusCode >= 500) {
+      }
+
+      if (response.statusCode >= 500) {
         throw Exception('Error del servidor, intenta más tarde');
-      } else {
-        throw Exception('Error inesperado (${response.statusCode})');
       }
-    } catch (e) {
-      if (e is Exception && 
-          (e.toString().contains('SocketException') || 
-           e.toString().contains('TimeoutException') || 
-           e.toString().contains('HttpException'))) {
-        throw Exception('Error de conexión. Verifica tu internet');
-      }
+
+      throw Exception('Error inesperado (${response.statusCode})');
+    } on Exception {
       rethrow;
-    }
-  }
-
-  Future<void> register(String email, String password) async {
-    try {
-      final response = await http.post(
-        Uri.parse('${AppConstants.apiBaseUrl}${AppConstants.registerEndpoint}'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}),
-      );
-
-      if (response.statusCode != 200) {
-        throw Exception('Error al registrarse: ${response.statusCode}');
-      }
     } catch (e) {
-      throw Exception('Error de conexión: $e');
+      throw Exception('Error de conexión. Verifica tu internet');
     }
   }
+
+  // ─── 2FA ──────────────────────────────────────────────────────────────────
+
+  /// Solicita a la API que envíe el código de 2FA al correo del usuario.
+  Future<void> send2FACode(String email) async {
+    final response = await http
+        .post(
+          Uri.parse('${AppConstants.apiBaseUrl}/LoginSendTwoFactorCode'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': email}),
+        )
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode != 200) {
+      throw Exception('No se pudo enviar el código de verificación');
+    }
+  }
+
+  /// Verifica el código 2FA y, si es válido, devuelve los tokens.
+  Future<AuthResponse> verify2FA(String email, String code) async {
+    final response = await http
+        .post(
+          Uri.parse('${AppConstants.apiBaseUrl}/LoginVerifyTwoFactor'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': email, 'code': code}),
+        )
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 200) {
+      final authResponse = AuthResponse.fromJson(jsonDecode(response.body));
+      await _saveTokens(authResponse);
+      await _storage.write(key: AppConstants.userEmailKey, value: email);
+      return authResponse;
+    }
+
+    if (response.statusCode == 401) {
+      throw Exception('Código incorrecto o expirado');
+    }
+
+    throw Exception('Error al verificar el código (${response.statusCode})');
+  }
+
+  // ─── Refresh token ────────────────────────────────────────────────────────
 
   Future<AuthResponse> refreshAccessToken() async {
     final refreshToken = await _storage.read(key: AppConstants.refreshTokenKey);
@@ -65,32 +103,30 @@ class AuthService {
       throw Exception('No hay refresh token disponible');
     }
 
-    try {
-      final response = await http.post(
-        Uri.parse('${AppConstants.apiBaseUrl}${AppConstants.refreshEndpoint}'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'refreshToken': refreshToken}),
-      );
+    final response = await http
+        .post(
+          Uri.parse('${AppConstants.apiBaseUrl}${AppConstants.refreshEndpoint}'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'refreshToken': refreshToken}),
+        )
+        .timeout(const Duration(seconds: 15));
 
-      if (response.statusCode == 200) {
-        final authResponse = AuthResponse.fromJson(jsonDecode(response.body));
-        await _saveTokens(authResponse);
-        return authResponse;
-      } else {
-        throw Exception('Error al refrescar token: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Error de conexión: $e');
+    if (response.statusCode == 200) {
+      final authResponse = AuthResponse.fromJson(jsonDecode(response.body));
+      await _saveTokens(authResponse);
+      return authResponse;
     }
+
+    throw Exception('Sesión expirada. Inicia sesión de nuevo');
   }
+
+  // ─── User info ────────────────────────────────────────────────────────────
 
   Future<User?> getUserInfo() async {
     final token = await getAccessToken();
     final email = await _storage.read(key: AppConstants.userEmailKey);
 
-    if (token == null || email == null) {
-      return null;
-    }
+    if (token == null || email == null) return null;
 
     try {
       final response = await http.get(
@@ -99,97 +135,86 @@ class AuthService {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      );
+      ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return User.fromJson(data);
-      } else {
-        return null;
+        return User.fromJson(jsonDecode(response.body));
       }
-    } catch (e) {
+      return null;
+    } catch (_) {
       return null;
     }
   }
 
   Future<Employee?> getEmpleado(String userId, String email) async {
-  final token = await getAccessToken();
-  if (token == null) return null;
+    final token = await getAccessToken();
+    if (token == null) return null;
 
-  try {
-    final response = await http.get(
-      Uri.parse('${AppConstants.personalBaseUrl}/Personal'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.personalBaseUrl}/Personal/user/$userId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 15));
 
-    print("USER ID LOGIN: $userId");
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-
-      if (data is List) {
-        for (var emp in data) {
-          final apiUserId = emp['usuarioId']?.toString().trim();
-
-          print("API USER ID: $apiUserId");
-
-          if (apiUserId == userId.trim()) {
-            print("✅ EMPLEADO ENCONTRADO");
-            return Employee.fromJson(emp);
-          }
-        }
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return Employee.fromJson(data);
       }
-    } else {
-      print("❌ ERROR API PERSONAL: ${response.statusCode}");
+      return null;
+    } catch (_) {
+      return null;
     }
-
-    print("❌ NO SE ENCONTRO EMPLEADO");
-    return null;
-  } catch (e) {
-    print("❌ ERROR: $e");
-    return null;
   }
-}
 
   Future<bool> esEmpleado(String userId, String email) async {
     final empleado = await getEmpleado(userId, email);
     return empleado != null;
   }
 
+  // ─── Session ──────────────────────────────────────────────────────────────
+
   Future<void> _saveTokens(AuthResponse authResponse) async {
     _accessToken = authResponse.accessToken;
-    _refreshToken = authResponse.refreshToken;
-
-    await _storage.write(
-      key: AppConstants.accessTokenKey,
-      value: authResponse.accessToken,
-    );
-    await _storage.write(
-      key: AppConstants.refreshTokenKey,
-      value: authResponse.refreshToken,
-    );
+    await _storage.write(key: AppConstants.accessTokenKey, value: authResponse.accessToken);
+    await _storage.write(key: AppConstants.refreshTokenKey, value: authResponse.refreshToken);
   }
 
   Future<String?> getAccessToken() async {
-    if (_accessToken != null) {
-      return _accessToken;
-    }
-
-    _accessToken = await _storage.read(key: AppConstants.accessTokenKey);
+    _accessToken ??= await _storage.read(key: AppConstants.accessTokenKey);
     return _accessToken;
   }
 
   Future<bool> isLoggedIn() async {
     final token = await getAccessToken();
-    return token != null;
+    return token != null && token.isNotEmpty;
   }
 
   Future<void> logout() async {
     _accessToken = null;
-    _refreshToken = null;
     await _storage.deleteAll();
   }
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+
+  String _extractDetail(String body) {
+    try {
+      final json = jsonDecode(body);
+      return (json['detail'] ?? json['message'] ?? '').toString().toLowerCase();
+    } catch (_) {
+      return body.toLowerCase();
+    }
+  }
+
+  bool _requiresTwoFactor(String detail) =>
+      detail.contains('twofactor') ||
+      detail.contains('two_factor') ||
+      detail.contains('2fa') ||
+      detail.contains('requirestwofactor');
+
+  bool _isEmailNotConfirmed(String detail) =>
+      detail.contains('email') &&
+      (detail.contains('confirm') || detail.contains('verificad') || detail.contains('verified'));
 }

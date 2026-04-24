@@ -137,6 +137,52 @@ class PermissionService {
     }
   }
 
+  /// PUT /PermisoPersonal/{id} - Actualizar permiso (ej. marcar como completado)
+  Future<Map<String, dynamic>> actualizarPermiso({
+    required int permisoId,
+    required bool estaActivo,
+    String? justificacion,
+    DateTime? fechaExpiracion,
+    String? token,
+  }) async {
+    try {
+      final url = '${_getBaseUrl()}/PermisoPersonal/$permisoId';
+      debugPrint('[PermissionService] PUT $url');
+
+      final body = {
+        'permisoId': permisoId,
+        'estaActivo': estaActivo,
+        if (justificacion != null) 'justificacion': justificacion,
+        if (fechaExpiracion != null)
+          'fechaExpiracion': fechaExpiracion.toIso8601String(),
+      };
+
+      final response = await http.put(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      ).timeout(const Duration(seconds: 15));
+
+      debugPrint('[PermissionService] actualizarPermiso status: ${response.statusCode}');
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return {'exitoso': true, 'mensaje': 'Permiso actualizado correctamente'};
+      } else {
+        return {
+          'exitoso': false,
+          'mensaje': 'Error al actualizar permiso: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      debugPrint('[PermissionService] actualizarPermiso error: $e');
+      return {'exitoso': false, 'mensaje': 'Error de conexión: $e'};
+    }
+  }
+
   /// POST /Habitacion/{habitacionId}/unlock - Abrir puerta
   Future<Map<String, dynamic>> abrirPuerta(int habitacionId, String? token) async {
   try {

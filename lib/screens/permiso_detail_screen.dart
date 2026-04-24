@@ -111,21 +111,6 @@ class PermisoDetailScreen extends StatelessWidget {
               const SizedBox(height: 16),
             ],
 
-            // Boton Marcar como Completada
-            if (permiso.estaActivo) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _marcarCompletado(context),
-                    icon: const Icon(Icons.check),
-                    label: const Text('MARCAR TAREA COMPLETADA'),
-                  ),
-                ),
-              ),
-            ],
-
             const SizedBox(height: 24),
           ],
         ),
@@ -165,6 +150,25 @@ class PermisoDetailScreen extends StatelessWidget {
 
   Future<void> _abrirPuerta(BuildContext context) async {
     if (permiso.habitacionId == null) return;
+
+    // Validar permiso temporal expirado
+    if (permiso.esTemporal &&
+        permiso.fechaExpiracion != null &&
+        permiso.fechaExpiracion!.isBefore(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.timer_off, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Permiso temporal expirado'),
+            ],
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
 
     final confirmar = await showDialog<bool>(
       context: context,
@@ -279,15 +283,67 @@ class PermisoDetailScreen extends StatelessWidget {
       ),
     );
 
-    if (confirmar == true && context.mounted) {
-      // TODO: Implementar logica para marcar completado en el backend
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tarea marcada como completada'),
-          backgroundColor: AppTheme.statusGreen,
+    if (confirmar != true || !context.mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Actualizando...'),
+              ],
+            ),
+          ),
         ),
+      ),
+    );
+
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final resultado = await context.read<PermissionProvider>().marcarCompletado(
+        permisoId: permiso.permisoId,
+        personalId: authProvider.personalId ?? '',
+        token: authProvider.token,
       );
-      Navigator.of(context).pop();
+
+      if (context.mounted) {
+        Navigator.of(context).pop(); // cerrar loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  resultado['exitoso'] == true ? Icons.check_circle : Icons.error,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: Text(resultado['mensaje'] ?? 'Operación completada')),
+              ],
+            ),
+            backgroundColor: resultado['exitoso'] == true
+                ? AppTheme.statusGreen
+                : AppTheme.statusRed,
+          ),
+        );
+        if (resultado['exitoso'] == true) Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppTheme.statusRed,
+          ),
+        );
+      }
     }
   }
 }

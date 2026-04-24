@@ -93,6 +93,25 @@ class PermissionProvider with ChangeNotifier {
     return resultado;
   }
 
+  /// Marcar permiso como completado/inactivo — PUT /PermisoPersonal/{id}
+  Future<Map<String, dynamic>> marcarCompletado({
+    required int permisoId,
+    required String personalId,
+    String? token,
+  }) async {
+    final resultado = await _permissionService.actualizarPermiso(
+      permisoId: permisoId,
+      estaActivo: false,
+      token: token,
+    );
+
+    if (resultado['exitoso'] == true) {
+      await cargarPermisos(personalId, token);
+    }
+
+    return resultado;
+  }
+
   /// Abrir puerta de habitacion
   Future<Map<String, dynamic>> abrirPuerta(int habitacionId, String? token) async {
     return await _permissionService.abrirPuerta(habitacionId, token);

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import '../screens/login_screen.dart';
 import '../providers/auth_provider.dart';
+import '../config/constants.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -28,7 +29,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _cargarDatos() async {
-    final empleado = context.read<AuthProvider>().empleado;
+    final auth = context.read<AuthProvider>();
+    final empleado = auth.empleado;
 
     if (empleado == null) {
       Navigator.pushReplacement(
@@ -44,46 +46,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _error = null;
     });
 
+    final token = auth.token;
+    final headers = {
+      'Content-Type': 'application/json',
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+    };
+
     try {
-      // =========================
-      // 🔹 CARGAR PUESTO
-      // =========================
-      if (empleado.puestoId != null) {
-        final puestoResponse = await http.get(
-          Uri.parse('https://localhost:7168/Puesto/${empleado.puestoId}'),
-        );
+      final puestoFuture = http.get(
+        Uri.parse('${AppConstants.personalBaseUrl}/Puesto/${empleado.puestoId}'),
+        headers: headers,
+      );
+      final deptoFuture = http.get(
+        Uri.parse('${AppConstants.personalBaseUrl}/Departamento/${empleado.departamentoId}'),
+        headers: headers,
+      );
 
-        if (puestoResponse.statusCode == 200) {
-          final puestoData = jsonDecode(puestoResponse.body);
-          _puestoNombre = puestoData['nombre'];
-        } else {
-          _puestoNombre = 'No asignado';
-        }
-      }
+      final responses = await Future.wait([puestoFuture, deptoFuture]);
 
-      // =========================
-      // 🔹 CARGAR DEPARTAMENTO
-      // =========================
-      if (empleado.departamentoId != null) {
-        final deptoResponse = await http.get(
-          Uri.parse('https://localhost:7168/Departamento/${empleado.departamentoId}'),
-        );
+      _puestoNombre = responses[0].statusCode == 200
+          ? (jsonDecode(responses[0].body)['nombre'] ?? 'No asignado')
+          : 'No asignado';
 
-        if (deptoResponse.statusCode == 200) {
-          final deptoData = jsonDecode(deptoResponse.body);
-          _departamentoNombre = deptoData['nombre'];
-        } else {
-          _departamentoNombre = 'No asignado';
-        }
-      }
+      _departamentoNombre = responses[1].statusCode == 200
+          ? (jsonDecode(responses[1].body)['nombre'] ?? 'No asignado')
+          : 'No asignado';
 
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _error = "Error cargando datos";
+        _error = 'Error cargando datos: $e';
       });
     }
   }

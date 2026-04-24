@@ -1,7 +1,21 @@
 {
   "permissions": {
     "allow": [
-      "Bash(flutter pub get:*)"
+      "Bash(flutter pub get:*)",
+      "Bash(flutter --version)",
+      "Bash(flutter doctor:*)",
+      "Bash(flutter devices:*)",
+      "Bash(flutter run:*)",
+      "Bash(pod install:*)",
+      "Bash(du -sh /Users/macbook/*)",
+      "Bash(flutter clean:*)",
+      "Bash(git checkout:*)",
+      "Bash(curl:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(flutter precache:*)",
+      "Bash(dart analyze:*)",
+      "Bash(/usr/bin/curl -s -o /dev/null -w '%{http_code}' https://api.smartstay.es/api/__TRACKED_VAR__/Habitacion)",
+      "Bash(/usr/bin/curl -s -o /dev/null -w '%{http_code}' https://api.smartstay.es/api/__TRACKED_VAR__/RegistrosAcceso)"
     ],
     "deny": [],
     "ask": []
