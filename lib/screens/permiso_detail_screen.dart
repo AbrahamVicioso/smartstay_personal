@@ -86,7 +86,7 @@ class PermisoDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 32),
 
-            // Boton Abrir Puerta (solo si es habitacion)
+            // Boton Abrir Puerta (habitacion)
             if (permiso.tieneHabitacion && permiso.estaActivo) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -96,6 +96,31 @@ class PermisoDetailScreen extends StatelessWidget {
                     onPressed: () => _abrirPuerta(context),
                     icon: const Icon(Icons.lock_open, size: 24),
                     label: const Text('ABRIR PUERTA'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.statusGreen,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      textStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Boton Desbloquear Actividad
+            if (permiso.tieneActividad && permiso.estaActivo) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _desbloquearActividad(context),
+                    icon: const Icon(Icons.event_available, size: 24),
+                    label: const Text('DESBLOQUEAR ACTIVIDAD'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.statusGreen,
                       foregroundColor: Colors.white,
@@ -243,6 +268,110 @@ class PermisoDetailScreen extends StatelessWidget {
                 Expanded(
                   child: Text(resultado['mensaje'] ?? 'Operacion completada'),
                 ),
+              ],
+            ),
+            backgroundColor: resultado['exitoso'] == true
+                ? AppTheme.statusGreen
+                : AppTheme.statusRed,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppTheme.statusRed,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _desbloquearActividad(BuildContext context) async {
+    if (permiso.actividadId == null) return;
+
+    if (permiso.esTemporal &&
+        permiso.fechaExpiracion != null &&
+        permiso.fechaExpiracion!.isBefore(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.timer_off, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Permiso temporal expirado'),
+            ],
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Desbloquear Actividad'),
+        content: Text(
+          'Está a punto de desbloquear "${permiso.descripcion}". Continuar?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('CANCELAR'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.statusGreen),
+            child: const Text('DESBLOQUEAR'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true || !context.mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Desbloqueando actividad...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final token = context.read<AuthProvider>().token;
+      final resultado = await context.read<PermissionProvider>().desbloquearActividad(
+        permiso.actividadId!,
+        token,
+      );
+
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  resultado['exitoso'] == true ? Icons.check_circle : Icons.error,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: Text(resultado['mensaje'] ?? 'Operación completada')),
               ],
             ),
             backgroundColor: resultado['exitoso'] == true

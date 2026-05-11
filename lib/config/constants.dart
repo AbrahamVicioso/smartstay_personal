@@ -1,9 +1,13 @@
 class AppConstants {
   // API Configuration
-  static const String apiBaseUrl = 'https://api.smartstay.es/api/auth';
-  static const String personalBaseUrl = 'https://api.smartstay.es/api/user';
-  static const String habitacionesBaseUrl = 'https://api.smartstay.es/api/reserva';
-  static const String registrosBaseUrl = 'https://api.smartstay.es/api/device';
+  // static const String _host = 'https://api.smartstay.es';
+  static const String _host = 'http://10.0.0.33:5019';
+  static const String _api = '$_host/api';
+
+  static const String apiBaseUrl = '$_api/auth';
+  static const String personalBaseUrl = '$_api/user';
+  static const String habitacionesBaseUrl = '$_api/reserva';
+  static const String registrosBaseUrl = '$_api/device';
 
   // API Endpoints
   static const String loginEndpoint = '/Login';

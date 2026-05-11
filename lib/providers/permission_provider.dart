@@ -117,6 +117,11 @@ class PermissionProvider with ChangeNotifier {
     return await _permissionService.abrirPuerta(habitacionId, token);
   }
 
+  /// Desbloquear actividad recreativa (personal)
+  Future<Map<String, dynamic>> desbloquearActividad(int actividadId, String? token) async {
+    return await _permissionService.desbloquearActividad(actividadId, token);
+  }
+
   void limpiar() {
     _permisos = [];
     _permisosActivos = [];

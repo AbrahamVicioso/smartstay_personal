@@ -183,6 +183,48 @@ class PermissionService {
     }
   }
 
+  /// POST /ActividadesRecreativas/{actividadId}/personal-unlock
+  Future<Map<String, dynamic>> desbloquearActividad(int actividadId, String? token) async {
+    try {
+      final uri = Uri.parse(
+          '${AppConstants.habitacionesBaseUrl}/ActividadesRecreativas/$actividadId/personal-unlock');
+      debugPrint('[PermissionService] POST $uri');
+
+      final response = await http.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      debugPrint('[PermissionService] desbloquearActividad → ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final body = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+        return {
+          'exitoso': true,
+          'mensaje': body['message'] ?? 'Actividad desbloqueada exitosamente',
+        };
+      } else if (response.statusCode == 401) {
+        return {'exitoso': false, 'mensaje': 'No autorizado. Token inválido o expirado.'};
+      } else if (response.statusCode == 403) {
+        return {'exitoso': false, 'mensaje': 'Sin permiso para desbloquear esta actividad.'};
+      } else if (response.statusCode == 404) {
+        return {'exitoso': false, 'mensaje': 'Actividad no encontrada.'};
+      } else {
+        final body = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+        return {'exitoso': false, 'mensaje': body['error'] ?? 'Error ${response.statusCode}'};
+      }
+    } on TimeoutException {
+      return {'exitoso': false, 'mensaje': 'Tiempo de espera agotado.'};
+    } catch (e) {
+      debugPrint('[PermissionService] Error desbloquearActividad: $e');
+      return {'exitoso': false, 'mensaje': 'Error de conexión: $e'};
+    }
+  }
+
   /// POST /Habitacion/{habitacionId}/unlock - Abrir puerta
   Future<Map<String, dynamic>> abrirPuerta(int habitacionId, String? token) async {
   try {

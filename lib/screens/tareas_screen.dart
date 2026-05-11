@@ -125,7 +125,7 @@ class _TareasScreenState extends State<TareasScreen> {
                           itemCount: permisos.length,
                           itemBuilder: (ctx, i) => _TareaCard(
                             permiso: permisos[i],
-                            onAcceder: () => _irANfc(permisos[i]),
+                            onAcceder: () => _irADetalle(permisos[i]),
                           ),
                         ),
                 ),
@@ -137,7 +137,7 @@ class _TareasScreenState extends State<TareasScreen> {
     );
   }
 
-  void _irANfc(PermisoPersonal permiso) async {
+  void _irADetalle(PermisoPersonal permiso) async {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => PermisoDetailScreen(permiso: permiso)),
     );
@@ -315,20 +315,18 @@ class _TareaCard extends StatelessWidget {
             const Divider(height: 1),
             const SizedBox(height: 10),
 
-            // Botón Acceder (solo habitaciones tienen NFC)
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: permiso.tieneHabitacion ? onAcceder : null,
+                onPressed: onAcceder,
                 icon: Icon(
-                  permiso.tieneHabitacion ? Icons.nfc : Icons.event_available,
+                  permiso.tieneHabitacion ? Icons.lock_open : Icons.event_available,
                   size: 18,
                 ),
-                label: Text(permiso.tieneHabitacion ? 'Ver' : 'ACTIVIDAD'),
+                label: Text(permiso.tieneHabitacion ? 'Abrir puerta' : 'Desbloquear'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: color,
                   foregroundColor: Colors.white,
-                  disabledBackgroundColor: color.withOpacity(0.4),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),

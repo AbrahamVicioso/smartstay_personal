@@ -1,10 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:http/http.dart' as http;
 import '../screens/login_screen.dart';
+import '../screens/credenciales_screen.dart';
 import '../providers/auth_provider.dart';
-import '../config/constants.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,8 +13,6 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   String? _nombreCompleto;
-  String? _puestoNombre;
-  String? _departamentoNombre;
   bool _isLoading = true;
   String? _error;
 
@@ -42,43 +38,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     setState(() {
       _nombreCompleto = empleado.nombreCompleto;
-      _isLoading = true;
+      _isLoading = false;
       _error = null;
     });
-
-    final token = auth.token;
-    final headers = {
-      'Content-Type': 'application/json',
-      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
-    };
-
-    try {
-      final puestoFuture = http.get(
-        Uri.parse('${AppConstants.personalBaseUrl}/Puesto/${empleado.puestoId}'),
-        headers: headers,
-      );
-      final deptoFuture = http.get(
-        Uri.parse('${AppConstants.personalBaseUrl}/Departamento/${empleado.departamentoId}'),
-        headers: headers,
-      );
-
-      final responses = await Future.wait([puestoFuture, deptoFuture]);
-
-      _puestoNombre = responses[0].statusCode == 200
-          ? (jsonDecode(responses[0].body)['nombre'] ?? 'No asignado')
-          : 'No asignado';
-
-      _departamentoNombre = responses[1].statusCode == 200
-          ? (jsonDecode(responses[1].body)['nombre'] ?? 'No asignado')
-          : 'No asignado';
-
-      setState(() => _isLoading = false);
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _error = 'Error cargando datos: $e';
-      });
-    }
   }
 
   @override
@@ -128,45 +90,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           ),
 
-                          const SizedBox(height: 30),
+                          const SizedBox(height: 16),
 
-                          // 📦 Card info
-                          Card(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            elevation: 4,
-                            child: Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Column(
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.work),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          _puestoNombre ?? 'No asignado',
-                                          style: const TextStyle(fontSize: 16),
-                                        ),
-                                      ),
-                                    ],
+                          // Credenciales
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.key_outlined),
+                              label: const Text('Mis Credenciales'),
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const CredencialesScreen(),
                                   ),
-                                  const SizedBox(height: 15),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.apartment),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          _departamentoNombre ?? 'No asignado',
-                                          style: const TextStyle(fontSize: 16),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                                );
+                              },
                             ),
                           ),
 

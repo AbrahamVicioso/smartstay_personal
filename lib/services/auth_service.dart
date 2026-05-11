@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/auth_response.dart';
@@ -124,23 +125,64 @@ class AuthService {
 
   Future<User?> getUserInfo() async {
     final token = await getAccessToken();
-    final email = await _storage.read(key: AppConstants.userEmailKey);
+    if (token == null) return null;
+    return _userFromJwt(token);
+  }
 
-    if (token == null || email == null) return null;
-
+  User? _userFromJwt(String token) {
     try {
-      final response = await http.get(
-        Uri.parse('${AppConstants.apiBaseUrl}/Users/by-email/$email'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
 
-      if (response.statusCode == 200) {
-        return User.fromJson(jsonDecode(response.body));
+      // Base64url → base64 estándar
+      String payload = parts[1];
+      payload = payload.replaceAll('-', '+').replaceAll('_', '/');
+      switch (payload.length % 4) {
+        case 2:
+          payload += '==';
+          break;
+        case 3:
+          payload += '=';
+          break;
       }
-      return null;
+
+      final decoded = utf8.decode(Uint8List.fromList(base64Decode(payload)));
+      final Map<String, dynamic> claims = jsonDecode(decoded);
+
+      // ASP.NET Identity usa estos claim types
+      const nsBase = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/';
+      const nsMicrosoft = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/';
+
+      final id = (claims['sub'] ??
+              claims['${nsBase}nameidentifier'] ??
+              claims['nameid'] ??
+              '')
+          .toString();
+
+      final email = (claims['email'] ??
+              claims['${nsBase}emailaddress'] ??
+              '')
+          .toString();
+
+      final name = (claims['name'] ??
+              claims['${nsBase}name'] ??
+              claims['given_name'] ??
+              '')
+          .toString();
+
+      final roles = claims['${nsMicrosoft}role'] ??
+          claims['role'] ??
+          claims['roles'] ??
+          '';
+      final department = roles is List ? roles.join(', ') : roles.toString();
+
+      return User(
+        id: id,
+        email: email,
+        name: name,
+        department: department,
+        isEmailConfirmed: true,
+      );
     } catch (_) {
       return null;
     }
@@ -152,7 +194,7 @@ class AuthService {
 
     try {
       final response = await http.get(
-        Uri.parse('${AppConstants.personalBaseUrl}/Personal/user/$userId'),
+        Uri.parse('${AppConstants.personalBaseUrl}/Personal/me'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
