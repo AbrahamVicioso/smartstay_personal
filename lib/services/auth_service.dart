@@ -25,6 +25,9 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        if (data['requiresTwoFactor'] == true) {
+          return AuthResponse.requiresTwoFactor();
+        }
         final authResponse = AuthResponse.fromJson(data);
         await _saveTokens(authResponse);
         await _storage.write(key: AppConstants.userEmailKey, value: email);

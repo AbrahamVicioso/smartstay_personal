@@ -1,7 +1,7 @@
 class AppConstants {
   // API Configuration
-  // static const String _host = 'https://api.smartstay.es';
-  static const String _host = 'http://10.0.0.33:5019';
+  static const String _host = 'https://api.smartstay.es';
+  // static const String _host = 'http://10.0.0.33:5019';
   static const String _api = '$_host/api';
 
   static const String apiBaseUrl = '$_api/auth';
